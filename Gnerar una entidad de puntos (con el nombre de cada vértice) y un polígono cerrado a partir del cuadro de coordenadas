@@ -1,0 +1,56 @@
+import arcpy
+
+# 1. Configuración del espacio de trabajo con la ruta especificada
+arcpy.env.workspace = r"C:\01_CRISTH_MAGP_TIERRAS\04_INFORMES\01_INFORMES TÉCNICOS +\04_SEPTIEMBRE\03_01P0214102008000504\03_RECTIFICACIÓN 01P0214102008000504\02_LINDERACIÓN"
+arcpy.env.overwriteOutput = True
+
+# Definición del sistema de referencia espacial: WGS 84 / UTM Zona 17S (EPSG: 32717)
+spatial_ref = arcpy.SpatialReference(32717)
+
+# 2. Lista de coordenadas extraídas del Cuadro de Coordenadas
+coordenadas = [
+    ("P01", 824163.456, 10010621.713),
+    ("P02", 824170.352, 10010637.608),
+    ("P03", 824174.313, 10010640.660),
+    ("P04", 824292.430, 10010626.030),
+    ("P05", 824265.132, 10010519.320),
+    ("P06", 824263.743, 10010513.479),
+    ("P07", 824258.525, 10010516.565),
+    ("P08", 824233.946, 10010540.718),
+    ("P09", 824216.164, 10010545.378),
+    ("P10", 824167.381, 10010540.551),
+    ("P11", 824168.403, 10010612.705)
+]
+
+# ---------------------------------------------------------
+# A. CREACIÓN DEL SHAPEFILE DE PUNTOS (Vértices P01 - P11)
+# ---------------------------------------------------------
+shp_puntos = "Vertices_P01_P11.shp"
+arcpy.CreateFeatureclass_management(arcpy.env.workspace, shp_puntos, "POINT", spatial_reference=spatial_ref)
+arcpy.AddField_management(shp_puntos, "VERTICE", "TEXT", field_length=10)
+
+with arcpy.da.InsertCursor(shp_puntos, ["SHAPE@", "VERTICE"]) as cursor:
+    for nombre, x, y in coordenadas:
+        punto = arcpy.Point(x, y)
+        cursor.insertRow([arcpy.PointGeometry(punto, spatial_ref), nombre])
+
+print("Shapefile de puntos creado en la ruta destino.")
+
+# ---------------------------------------------------------
+# B. CREACIÓN DEL SHAPEFILE DE POLÍGONO (Predio)
+# ---------------------------------------------------------
+shp_poligono = "Poligono_Predio.shp"
+arcpy.CreateFeatureclass_management(arcpy.env.workspace, shp_poligono, "POLYGON", spatial_reference=spatial_ref)
+arcpy.AddField_management(shp_poligono, "CODIGO", "TEXT", field_length=30)
+
+# Construcción de la geometría del polígono
+array_puntos = arcpy.Array()
+for nombre, x, y in coordenadas:
+    array_puntos.add(arcpy.Point(x, y))
+
+geometria_poligono = arcpy.Polygon(array_puntos, spatial_ref)
+
+with arcpy.da.InsertCursor(shp_poligono, ["SHAPE@", "CODIGO"]) as cursor:
+    cursor.insertRow([geometria_poligono, "01P0214102008000504"])
+
+print("Shapefile de polígono creado exitosamente en la ruta destino.")
